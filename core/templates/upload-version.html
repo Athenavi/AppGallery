@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ application.name }} - 版本管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+        }
+
+        .app-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            font-weight: bold;
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+        }
+
+        .upload-btn {
+            transition: all 0.3s ease;
+            background: linear-gradient(to right, #10b981, #34d399);
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .download-btn {
+            transition: all 0.3s ease;
+            background: linear-gradient(to right, #3b82f6, #60a5fa);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .file-upload {
+            border: 2px dashed #d1d5db;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover {
+            border-color: #3b82f6;
+            background-color: #f8fafc;
+        }
+
+        .version-row:hover {
+            background-color: #f8fafc;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+<!-- 顶部导航 -->
+<header class="bg-white shadow-sm">
+    <div class="container mx-auto px-4 py-3">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center">
+                <a href="/" class="flex items-center">
+                    <div class="bg-blue-500 text-white p-2 rounded-lg mr-3">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <h1 class="text-xl font-bold text-gray-800">应用市场</h1>
+                </a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- 主内容区 -->
+<main class="container mx-auto px-4 py-8">
+    <!-- 应用基本信息 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="p-6 md:p-8">
+            <div class="flex flex-col md:flex-row items-start md:items-center space-y-6 md:space-y-0 md:space-x-6">
+                <div class="app-icon">
+                    {{ application.name|first|upper }}
+                </div>
+                <div class="flex-1">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">{{ application.name }}</h1>
+                            <div class="mt-1">
+                                <span class="text-sm text-gray-500">应用ID: {{ application.app_id }}</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 md:mt-0">
+                                <span class="text-gray-500 text-sm">
+                                    <i class="far fa-calendar-alt mr-1"></i> 创建时间: {{ application.created_at|date:"Y-m-d" }}
+                                </span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-2">应用描述</h2>
+                        <p class="text-gray-600 leading-relaxed">{{ application.description }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 上传新版本表单 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-cloud-upload-alt mr-3 text-green-500"></i> 上传新版本
+            </h2>
+        </div>
+
+        <div class="p-6">
+            <form method="post" enctype="multipart/form-data" class="space-y-6">
+                {% csrf_token %}
+                <input type="hidden" name="app_id" value="{{ application.app_id }}">
+
+                <div class="space-y-2">
+                    <label for="version" class="block text-sm font-medium text-gray-700">
+                        版本号 <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="version" name="version" required
+                           class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="例如: 1.0.0">
+                    <p class="text-xs text-gray-500">请使用语义化版本格式: 主版本.次版本.修订号 (如: 1.0.0)</p>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">
+                        应用文件 <span class="text-red-500">*</span>
+                    </label>
+                    <div class="file-upload rounded-lg p-6 text-center cursor-pointer">
+                        <div class="flex flex-col items-center justify-center">
+                            <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                            <p class="text-sm text-gray-600">拖放文件到此处或点击选择</p>
+                            <p class="text-xs text-gray-500 mt-1">支持 APK, IPA 等格式</p>
+                        </div>
+                        <input type="file" id="file" name="file" required class="hidden">
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label for="release_notes" class="block text-sm font-medium text-gray-700">
+                        发布说明
+                    </label>
+                    <textarea id="release_notes" name="release_notes" rows="4"
+                              class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="描述此版本的更新内容..."></textarea>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit"
+                            class="upload-btn text-white px-6 py-3 rounded-lg font-medium flex items-center">
+                        <i class="fas fa-upload mr-2"></i> 上传版本
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 版本列表 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-history mr-3 text-blue-500"></i> 历史版本
+            </h2>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        版本号
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        文件名
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        大小
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        上传时间
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        操作
+                    </th>
+                </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                {% for version in versions %}
+                    <tr class="version-row">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <span class="font-medium text-gray-900">{{ version.version }}</span>
+                                {% if forloop.first %}
+                                    <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                        最新
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <div class="flex items-center">
+                                <i class="fas fa-file-archive mr-2 text-gray-400"></i>
+                                {{ version.file_name }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ version.file_size|filesizeformat }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <i class="far fa-clock mr-1 text-gray-400"></i>
+                            {{ version.upload_time|date:"Y-m-d H:i" }}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center py-8">
+                                <i class="fas fa-box-open text-3xl text-gray-300 mb-2"></i>
+                                <p>暂无版本记录</p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<!-- 底部导航 -->
+<footer class="bg-gray-100 border-t border-gray-200 mt-12 py-8">
+    <div class="container mx-auto px-4">
+        <div class="text-center text-gray-500 text-sm">
+            <p>&copy; {% now "Y" %} 应用市场. 保留所有权利。</p>
+            <div class="mt-2">
+                <a href="#" class="hover:text-gray-700 mx-2">关于我们</a>
+                <a href="#" class="hover:text-gray-700 mx-2">服务条款</a>
+                <a href="#" class="hover:text-gray-700 mx-2">隐私政策</a>
+                <a href="#" class="hover:text-gray-700 mx-2">联系我们</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    // 文件上传区域交互
+    const fileUpload = document.querySelector('.file-upload');
+    const fileInput = document.querySelector('#file');
+
+    fileUpload.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            fileUpload.innerHTML = `
+                    <div class="flex items-center justify-center">
+                        <i class="fas fa-file-alt text-2xl text-blue-500 mr-3"></i>
+                        <div>
+                            <p class="text-sm font-medium text-gray-800">${fileInput.files[0].name}</p>
+                            <p class="text-xs text-gray-500">${(fileInput.files[0].size / 1024 / 1024).toFixed(2)} MB</p>
+                        </div>
+                    </div>
+                `;
+        }
+    });
+
+    // 拖放功能
+    fileUpload.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUpload.classList.add('border-blue-500', 'bg-blue-50');
+    });
+
+    fileUpload.addEventListener('dragleave', () => {
+        fileUpload.classList.remove('border-blue-500', 'bg-blue-50');
+    });
+
+    fileUpload.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUpload.classList.remove('border-blue-500', 'bg-blue-50');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            fileInput.dispatchEvent(new Event('change'));
+        }
+    });
+
+    // 按钮悬停效果
+    document.querySelectorAll('.download-btn, .upload-btn').forEach(btn => {
+        btn.addEventListener('mouseenter', function () {
+            this.style.transform = 'translateY(-2px)';
+        });
+
+        btn.addEventListener('mouseleave', function () {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+</script>
+</body>
+</html>

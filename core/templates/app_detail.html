@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app.name }} - 应用详情</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+        }
+
+        .app-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            font-weight: bold;
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+        }
+
+        .download-btn {
+            transition: all 0.3s ease;
+            background: linear-gradient(to right, #3b82f6, #60a5fa);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .version-card {
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .version-card:hover {
+            border-left-color: #3b82f6;
+            background-color: #f8fafc;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+<!-- 顶部导航 -->
+<header class="bg-white shadow-sm">
+    <div class="container mx-auto px-4 py-3">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center">
+                <a href="/" class="flex items-center">
+                    <div class="bg-blue-500 text-white p-2 rounded-lg mr-3">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <h1 class="text-xl font-bold text-gray-800">应用市场</h1>
+                </a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- 主内容区 -->
+<main class="container mx-auto px-4 py-8">
+    <!-- 应用基本信息 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="p-6 md:p-8">
+            <div class="flex flex-col md:flex-row items-start md:items-center space-y-6 md:space-y-0 md:space-x-6">
+                <div class="app-icon">
+                    {{ app.name|first|upper }}
+                </div>
+                <div class="flex-1">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">{{ app.name }}</h1>
+                            <div class="flex items-center mt-2 space-x-2">
+                                    <span class="text-sm font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                        免费
+                                    </span>
+                                {% for category in app.categories.all %}
+                                    <span class="text-sm bg-gray-100 text-gray-800 px-2 py-1 rounded-full">
+                                        {{ category.name }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="mt-4 md:mt-0">
+                                <span class="text-gray-500 text-sm">
+                                    <i class="far fa-user mr-1"></i> {{ app.owner.username }}
+                                </span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-2">应用描述</h2>
+                        <p class="text-gray-600 leading-relaxed">{{ app.description }}</p>
+                    </div>
+
+                    <div class="mt-6 flex flex-wrap gap-4 text-sm text-gray-500">
+                        <div>
+                            <i class="far fa-calendar-alt mr-1"></i> 创建时间: {{ app.created_at|date:"Y-m-d" }}
+                        </div>
+                        <div>
+                            <i class="fas fa-download mr-1"></i> 下载量: {{ app.download_count }}
+                        </div>
+                        <div>
+                            <i class="fas fa-star mr-1"></i> 评分: 4.8 (256)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 版本列表 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-code-branch mr-3 text-blue-500"></i> 版本列表
+            </h2>
+        </div>
+
+        {% if app_versions %}
+            <ul class="divide-y divide-gray-200">
+                {% for version in app_versions %}
+                    <li class="version-card">
+                        <div class="p-6">
+                            <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                                <div class="mb-4 md:mb-0">
+                                    <div class="flex items-center">
+                                        <h3 class="text-lg font-semibold text-gray-800 mr-3">{{ version.version }}</h3>
+                                        {% if forloop.first %}
+                                            <span class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                        最新版本
+                                    </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mt-2 text-sm text-gray-500">
+                                        <span class="mr-4"><i
+                                                class="far fa-clock mr-1"></i> {{ version.upload_time|date:"Y-m-d H:i" }}</span>
+                                        <span class="mr-4"><i class="fas fa-file-alt mr-1"></i> {{ version.file_name }}</span>
+                                        <span><i
+                                                class="fas fa-database mr-1"></i> {{ version.file_size|filesizeformat }}</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <a href="/apps/{{ app.app_id }}/versions/{{ version.version }}/download/"
+                                       class="download-btn text-white px-5 py-2.5 rounded-lg font-medium inline-flex items-center"
+                                       target="_blank">
+                                        <i class="fas fa-download mr-2"></i> 下载
+                                    </a>
+                                </div>
+                            </div>
+
+                            {% if version.release_notes %}
+                                <div class="mt-4 pt-4 border-t border-gray-100">
+                                    <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                                        <i class="fas fa-clipboard-list mr-2 text-blue-500"></i> 更新内容
+                                    </h4>
+                                    <div class="prose prose-sm max-w-none text-gray-600">
+                                        {{ version.release_notes|linebreaks }}
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <div class="mt-4 pt-4 border-t border-gray-100">
+                                <div class="text-xs text-gray-500 flex items-center">
+                                    <i class="fas fa-fingerprint mr-2"></i> MD5: {{ version.md5_hash }}
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="p-8 text-center">
+                <div class="mx-auto max-w-md">
+                    <i class="fas fa-box-open text-4xl text-gray-300 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-700 mb-2">暂无版本</h3>
+                    <p class="text-gray-500">该应用当前没有可用的版本</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</main>
+
+<!-- 底部导航 -->
+<footer class="bg-gray-100 border-t border-gray-200 mt-12 py-8">
+    <div class="container mx-auto px-4">
+        <div class="text-center text-gray-500 text-sm">
+            <p>&copy; {% now "Y" %} 应用市场. 保留所有权利。</p>
+            <div class="mt-2">
+                <a href="#" class="hover:text-gray-700 mx-2">关于我们</a>
+                <a href="#" class="hover:text-gray-700 mx-2">服务条款</a>
+                <a href="#" class="hover:text-gray-700 mx-2">隐私政策</a>
+                <a href="#" class="hover:text-gray-700 mx-2">联系我们</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    // 简单的交互效果
+    document.querySelectorAll('.download-btn').forEach(btn => {
+        btn.addEventListener('mouseenter', function () {
+            this.style.transform = 'translateY(-2px)';
+        });
+
+        btn.addEventListener('mouseleave', function () {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+</script>
+</body>
+</html>

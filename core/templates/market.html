@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>应用市场 | {{ site_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+        }
+
+        .app-card {
+            transition: all 0.3s ease;
+            border-radius: 12px;
+            overflow: hidden;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .app-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .app-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: white;
+            font-weight: bold;
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+        }
+
+        .detail-btn {
+            transition: all 0.3s ease;
+            background: linear-gradient(to right, #3b82f6, #60a5fa);
+        }
+
+        .detail-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .empty-state {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+<!-- 顶部导航 -->
+<header class="bg-white shadow-sm">
+    <div class="container mx-auto px-4 py-3">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center">
+                <div class="bg-blue-500 text-white p-2 rounded-lg mr-3">
+                    <i class="fas fa-store"></i>
+                </div>
+                <h1 class="text-xl font-bold text-gray-800">{{ site_name }}</h1>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- 主内容区 -->
+<main class="container mx-auto px-4 py-8">
+    <!-- 搜索和筛选区域 -->
+    <div class="mb-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end space-y-4 md:space-y-0">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">应用列表</h2>
+                <p class="text-gray-600">发现最适合您的应用</p>
+            </div>
+            <div class="w-full md:w-auto">
+                <form method="get" class="flex space-x-2">
+                    <input type="text" name="q" placeholder="搜索应用..."
+                           class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent w-full md:w-64"
+                           value="{{ request.GET.q }}">
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 应用列表 -->
+    {% if applications %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for app in applications %}
+                <div class="app-card">
+                    <div class="p-6">
+                        <div class="flex items-start mb-4">
+                            <div class="app-icon mr-4">
+                                {{ app.name|first|upper }}
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800 mb-1">{{ app.name }}</h2>
+                                <div class="flex items-center">
+                                <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                    免费
+                                </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="text-gray-600 mb-4 line-clamp-2">{{ app.description }}</p>
+
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            {% for category in app.categories.all %}
+                                <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">
+                            {{ category.name }}
+                        </span>
+                            {% endfor %}
+                        </div>
+
+                        <div class="flex justify-between items-center text-sm text-gray-500 mb-4">
+                            <div>
+                                <i class="far fa-calendar-alt mr-1"></i>
+                                {{ app.created_at|date:"Y-m-d" }}
+                            </div>
+                            <div>
+                                <i class="far fa-user mr-1"></i>
+                                {{ app.owner.username }}
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <a href="{% url 'app_detail' app.pk %}"
+                               class="detail-btn text-white px-4 py-2 rounded-lg font-medium w-full block text-center">
+                                查看详情
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- 分页 -->
+        {% if is_paginated %}
+            <div class="mt-10 flex justify-center">
+                <nav class="inline-flex rounded-md shadow">
+                    {% if page_obj.has_previous %}
+                        <a href="?page=
+                                {{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+                           class="px-3 py-2 rounded-l-md border border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <span class="px-3 py-2 border-t border-b border-gray-300 bg-blue-500 text-white">
+                        {{ num }}
+                    </span>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <a href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+                               class="px-3 py-2 border-t border-b border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
+                                {{ num }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <a href="?page=
+                                {{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+                           class="px-3 py-2 rounded-r-md border border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    {% endif %}
+                </nav>
+            </div>
+        {% endif %}
+
+    {% else %}
+        <!-- 空状态 -->
+        <div class="empty-state rounded-xl p-10 text-center">
+            <div class="mx-auto max-w-md">
+                <i class="fas fa-box-open text-5xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-medium text-gray-700 mb-2">暂无应用</h3>
+                <p class="text-gray-500 mb-6">当前没有可用的应用，您可以尝试其他搜索条件</p>
+                <a href="{% url 'app_list' %}"
+                   class="inline-block bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
+                    查看所有应用
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</main>
+
+<!-- 底部导航 -->
+<footer class="bg-gray-100 border-t border-gray-200 mt-12 py-8">
+    <div class="container mx-auto px-4">
+        <div class="text-center text-gray-500 text-sm">
+            <p>&copy; {% now "Y" %} {{ site_name }}. 保留所有权利。</p>
+            <div class="mt-2">
+                <a href="#" class="hover:text-gray-700 mx-2">关于我们</a>
+                <a href="#" class="hover:text-gray-700 mx-2">服务条款</a>
+                <a href="#" class="hover:text-gray-700 mx-2">隐私政策</a>
+                <a href="#" class="hover:text-gray-700 mx-2">联系我们</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    // 简单的卡片悬停效果
+    document.querySelectorAll('.app-card').forEach(card => {
+        card.addEventListener('mouseenter', function () {
+            this.style.transform = 'translateY(-4px)';
+        });
+
+        card.addEventListener('mouseleave', function () {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+</script>
+</body>
+</html>
