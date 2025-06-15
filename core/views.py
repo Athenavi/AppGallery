@@ -1,7 +1,7 @@
 import hashlib
 import os
 import re
-from datetime import timezone
+from django.utils import timezone
 
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
@@ -200,7 +200,7 @@ def market(request):
 
 def app_detail(request, app_id):
     app = get_object_or_404(Application, pk=app_id)
-    app_versions = AppVersion.objects.filter(application=app)
+    app_versions = AppVersion.objects.filter(application=app).order_by('-upload_time')
     return render(request, 'app_detail.html', {'app': app, 'app_versions': app_versions})
 
 
@@ -238,31 +238,39 @@ def upload_version(request, app_id):
                 'error': '该版本号已存在'
             })
 
+        # 创建应用目录
+        app_dir = os.path.join(STORAGE_PATH, str(app_id))
+        os.makedirs(app_dir, exist_ok=True)
+
         # 计算文件MD5
         md5 = hashlib.md5()
         for chunk in file.chunks():
             md5.update(chunk)
         md5_hash = md5.hexdigest()
 
-        # 文件存储
-        fs = FileSystemStorage()
-        filename = fs.save(file.name, file)
+        # 保存文件到指定的应用目录
+        sanitized_filename = sanitize_filename(file.name)
+        filename = f"{version}_{sanitized_filename}"
+        file_path = os.path.join(app_dir, filename)
+        with open(file_path, 'wb+') as destination:
+            for chunk in file.chunks():
+                destination.write(chunk)
 
         # 创建新版本记录
         AppVersion.objects.create(
             application=application,
             version=version,
-            file_name=file.name,
-            file_size=file.size,
+            file_name=sanitized_filename,
+            file_size=os.path.getsize(file_path),
             md5_hash=md5_hash,
             upload_time=timezone.now(),
             release_notes=release_notes
         )
 
-        return redirect('version_list', app_id=app_id)
+        return redirect('app_detail', app_id=app_id)
 
     # GET请求
-    versions = AppVersion.objects.filter(application=application)
+    versions = AppVersion.objects.filter(application=application).order_by('-upload_time')
     return render(request, 'upload-version.html', {
         'application': application,
         'versions': versions

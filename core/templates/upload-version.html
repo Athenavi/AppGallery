@@ -60,6 +60,36 @@
         .version-row:hover {
             background-color: #f8fafc;
         }
+
+        .error-message {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(to right, #10b981, #34d399);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -121,7 +151,40 @@
         </div>
 
         <div class="p-6">
-            <form method="post" enctype="multipart/form-data" class="space-y-6">
+            <!-- 错误信息显示区域 -->
+            {% if errors %}
+                <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 error-message">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-circle text-red-500 mt-1"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-red-700">
+                                {% for error in errors %}
+                                    {{ error }}<br>
+                                {% endfor %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if error %}
+                <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 error-message">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-circle text-red-500 mt-1"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-red-700">
+                                {{ error }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" class="space-y-6" id="upload-form">
                 {% csrf_token %}
                 <input type="hidden" name="app_id" value="{{ application.app_id }}">
 
@@ -131,7 +194,7 @@
                     </label>
                     <input type="text" id="version" name="version" required
                            class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                           placeholder="例如: 1.0.0">
+                           placeholder="例如: 1.0.0" value="{{ request.POST.version }}">
                     <p class="text-xs text-gray-500">请使用语义化版本格式: 主版本.次版本.修订号 (如: 1.0.0)</p>
                 </div>
 
@@ -139,13 +202,24 @@
                     <label class="block text-sm font-medium text-gray-700">
                         应用文件 <span class="text-red-500">*</span>
                     </label>
-                    <div class="file-upload rounded-lg p-6 text-center cursor-pointer">
-                        <div class="flex flex-col items-center justify-center">
+                    <div class="file-upload rounded-lg p-6 text-center cursor-pointer" id="file-upload-area">
+                        <div class="flex flex-col items-center justify-center" id="upload-prompt">
                             <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
                             <p class="text-sm text-gray-600">拖放文件到此处或点击选择</p>
                             <p class="text-xs text-gray-500 mt-1">支持 APK, IPA 等格式</p>
                         </div>
+                        <div id="file-info" class="hidden flex items-center justify-center">
+                            <i class="fas fa-file-alt text-2xl text-blue-500 mr-3"></i>
+                            <div>
+                                <p id="file-name" class="text-sm font-medium text-gray-800"></p>
+                                <p id="file-size" class="text-xs text-gray-500"></p>
+                            </div>
+                        </div>
                         <input type="file" id="file" name="file" required class="hidden">
+                    </div>
+                    <!-- 上传进度条 -->
+                    <div class="progress-bar hidden" id="progress-container">
+                        <div class="progress-fill" id="progress-bar"></div>
                     </div>
                 </div>
 
@@ -155,12 +229,13 @@
                     </label>
                     <textarea id="release_notes" name="release_notes" rows="4"
                               class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="描述此版本的更新内容..."></textarea>
+                              placeholder="描述此版本的更新内容...">{{ request.POST.release_notes }}</textarea>
                 </div>
 
                 <div class="flex justify-end">
                     <button type="submit"
-                            class="upload-btn text-white px-6 py-3 rounded-lg font-medium flex items-center">
+                            class="upload-btn text-white px-6 py-3 rounded-lg font-medium flex items-center"
+                            id="upload-btn">
                         <i class="fas fa-upload mr-2"></i> 上传版本
                     </button>
                 </div>
@@ -195,10 +270,6 @@
                     <th scope="col"
                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         上传时间
-                    </th>
-                    <th scope="col"
-                        class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        操作
                     </th>
                 </tr>
                 </thead>
@@ -262,42 +333,99 @@
 
 <script>
     // 文件上传区域交互
-    const fileUpload = document.querySelector('.file-upload');
-    const fileInput = document.querySelector('#file');
+    const fileUploadArea = document.getElementById('file-upload-area');
+    const fileInput = document.getElementById('file');
+    const uploadPrompt = document.getElementById('upload-prompt');
+    const fileInfo = document.getElementById('file-info');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const uploadBtn = document.getElementById('upload-btn');
+    const uploadForm = document.getElementById('upload-form');
 
-    fileUpload.addEventListener('click', () => fileInput.click());
+    fileUploadArea.addEventListener('click', () => fileInput.click());
 
     fileInput.addEventListener('change', () => {
         if (fileInput.files.length > 0) {
-            fileUpload.innerHTML = `
-                    <div class="flex items-center justify-center">
-                        <i class="fas fa-file-alt text-2xl text-blue-500 mr-3"></i>
-                        <div>
-                            <p class="text-sm font-medium text-gray-800">${fileInput.files[0].name}</p>
-                            <p class="text-xs text-gray-500">${(fileInput.files[0].size / 1024 / 1024).toFixed(2)} MB</p>
-                        </div>
-                    </div>
-                `;
+            const file = fileInput.files[0];
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+
+            uploadPrompt.classList.add('hidden');
+            fileInfo.classList.remove('hidden');
         }
     });
+
+    // 格式化文件大小
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
 
     // 拖放功能
-    fileUpload.addEventListener('dragover', (e) => {
+    fileUploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
-        fileUpload.classList.add('border-blue-500', 'bg-blue-50');
+        fileUploadArea.classList.add('border-blue-500', 'bg-blue-50');
     });
 
-    fileUpload.addEventListener('dragleave', () => {
-        fileUpload.classList.remove('border-blue-500', 'bg-blue-50');
+    fileUploadArea.addEventListener('dragleave', () => {
+        fileUploadArea.classList.remove('border-blue-500', 'bg-blue-50');
     });
 
-    fileUpload.addEventListener('drop', (e) => {
+    fileUploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
-        fileUpload.classList.remove('border-blue-500', 'bg-blue-50');
+        fileUploadArea.classList.remove('border-blue-500', 'bg-blue-50');
+
         if (e.dataTransfer.files.length) {
             fileInput.files = e.dataTransfer.files;
-            fileInput.dispatchEvent(new Event('change'));
+            const file = fileInput.files[0];
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+
+            uploadPrompt.classList.add('hidden');
+            fileInfo.classList.remove('hidden');
         }
+    });
+
+    // 表单提交事件 - 显示上传进度
+    uploadForm.addEventListener('submit', function (e) {
+        const file = fileInput.files[0];
+        if (!file) {
+            e.preventDefault();
+            alert('请选择要上传的文件');
+            return;
+        }
+
+        // 显示上传进度
+        progressContainer.classList.remove('hidden');
+
+        // 创建XHR对象用于上传进度跟踪
+        const xhr = new XMLHttpRequest();
+        const formData = new FormData(uploadForm);
+
+        // 上传进度事件
+        xhr.upload.addEventListener('progress', function (e) {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                progressBar.style.width = percentComplete + '%';
+
+                if (percentComplete === 100) {
+                    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> 处理中...';
+                    uploadBtn.disabled = true;
+                }
+            }
+        });
+
+        // 发送表单数据
+        xhr.open('POST', uploadForm.action, true);
+        xhr.send(formData);
+
+        // 阻止默认表单提交
+        e.preventDefault();
     });
 
     // 按钮悬停效果
