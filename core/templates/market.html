@@ -78,7 +78,8 @@
             <div class="mt-10 flex justify-center">
                 <nav class="inline-flex rounded-md shadow">
                     {% if page_obj.has_previous %}
-                        <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+                        <a href="?page=
+                                {{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
                            class="px-3 py-2 rounded-l-md border border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
                             <i class="fas fa-chevron-left"></i>
                         </a>
@@ -174,10 +175,10 @@
         const searchInput = document.getElementById('searchInput');
         const searchForm = document.getElementById('searchForm');
 
-        // 输入防抖 (300ms)
+        // 输入防抖 (750ms)
         searchInput.addEventListener('input', debounce(function () {
             searchForm.submit();
-        }, 300));
+        }, 750));
     });
 </script>
 {% include 'footer.html' %}

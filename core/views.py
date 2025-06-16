@@ -34,24 +34,6 @@ def sanitize_filename(filename):
     return filename
 
 
-class CreateApplicationView(APIView):
-    """创建新应用"""
-    renderer_classes = [JSONRenderer]  # 明确指定渲染器
-
-    def post(self, request, format=None):
-        serializer = ApplicationSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(owner=request.user)
-            return Response(
-                {"success": f"应用 '{serializer.validated_data['name']}' 创建成功!"},
-                status=status.HTTP_201_CREATED
-            )
-        return Response(
-            {"error": "创建应用失败", "details": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
 class AppVersionAPI(APIView):
     """应用版本管理"""
     renderer_classes = [JSONRenderer]  # 明确指定渲染器
@@ -199,15 +181,25 @@ class LatestVersionAPI(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+from django.core.cache import cache
+
+
 def market(request):
     query = request.GET.get('q', '')
-    apps = Application.objects.all().order_by('-id')
+    cache_key = f"market_view_{query}"
+    apps = cache.get(cache_key)
 
-    if query:
-        apps = apps.filter(
-            Q(name__icontains=query) |
-            Q(description__icontains=query)
-        ).distinct()
+    if apps is None:
+        apps = Application.objects.all().order_by('-id')
+
+        if query:
+            apps = apps.filter(
+                Q(name__icontains=query) |
+                Q(description__icontains=query)
+            ).distinct()
+
+        # 设置缓存，超时时间为60秒
+        cache.set(cache_key, list(apps), 60)
 
     paginator = Paginator(apps, 9)  # 每页9个应用
     page_number = request.GET.get('page')
