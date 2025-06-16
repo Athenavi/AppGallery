@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 
 from .models import AppVersion, Application
 from .serializers import ApplicationSerializer, AppVersionSerializer
+from django.contrib.auth.decorators import login_required
 
 # 配置存储路径
 STORAGE_PATH = getattr(settings, 'APP_STORAGE', 'app_storage')
@@ -146,6 +147,7 @@ class AppVersionAPI(APIView):
         )
 
 
+@login_required
 @api_view(['GET'])
 def download_app_version(request, app_id, version):
     """下载特定版本应用"""
