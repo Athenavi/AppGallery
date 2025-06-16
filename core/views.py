@@ -492,7 +492,7 @@ def github_callback(request):
         # 登录现有用户
         login(request, user)
         logger.info(f"用户登录成功: {user.username}")
-        return redirect('login_view')
+        return redirect('user_profile')
 
     except GitHubSocialAuth.DoesNotExist:
         # 没有找到现有关联，创建新用户
@@ -588,4 +588,9 @@ def github_callback(request):
     # 登录用户
     login(request, user)
     logger.info(f"用户登录成功: {user.username}")
-    return redirect('login_view')
+    return redirect('user_profile')
+
+
+@login_required
+def user_profile(request):
+    return render(request, 'user_profile.html', {'user': request.user})
