@@ -9,8 +9,8 @@
                 <p class="text-gray-600">发现最适合您的应用</p>
             </div>
             <div class="w-full md:w-auto">
-                <form method="get" class="flex space-x-2">
-                    <input type="text" name="q" placeholder="搜索应用..."
+                <form id="searchForm" method="get" class="flex space-x-2">
+                    <input id="searchInput" type="text" name="q" placeholder="搜索应用..."
                            class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent w-full md:w-64"
                            value="{{ request.GET.q }}">
                     <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
@@ -41,13 +41,13 @@
                             </div>
                         </div>
 
-                        <p class="text-gray-600 mb-4 line-clamp-2">{{ app.description }}</p>
+                        <p class="app-description text-gray-600 mb-4 line-clamp-2">{{ app.description }}</p>
 
                         <div class="flex flex-wrap gap-2 mb-4">
                             {% for category in app.categories.all %}
                                 <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">
-                            {{ category.name }}
-                        </span>
+                                    {{ category.name }}
+                                </span>
                             {% endfor %}
                         </div>
 
@@ -78,8 +78,7 @@
             <div class="mt-10 flex justify-center">
                 <nav class="inline-flex rounded-md shadow">
                     {% if page_obj.has_previous %}
-                        <a href="?page=
-                                {{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+                        <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
                            class="px-3 py-2 rounded-l-md border border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
                             <i class="fas fa-chevron-left"></i>
                         </a>
@@ -88,8 +87,8 @@
                     {% for num in page_obj.paginator.page_range %}
                         {% if page_obj.number == num %}
                             <span class="px-3 py-2 border-t border-b border-gray-300 bg-blue-500 text-white">
-                        {{ num }}
-                    </span>
+                                {{ num }}
+                            </span>
                         {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                             <a href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
                                class="px-3 py-2 border-t border-b border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
@@ -116,7 +115,7 @@
                 <i class="fas fa-box-open text-5xl text-gray-300 mb-4"></i>
                 <h3 class="text-xl font-medium text-gray-700 mb-2">暂无应用</h3>
                 <p class="text-gray-500 mb-6">当前没有可用的应用，您可以尝试其他搜索条件</p>
-                <a href="{% url 'app_list' %}"
+                <a href="{% url 'market' %}"
                    class="inline-block bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
                     查看所有应用
                 </a>
@@ -124,20 +123,61 @@
         </div>
     {% endif %}
 </main>
-
-{% include 'footer.html' %}
-
 <script>
-    // 简单的卡片悬停效果
-    document.querySelectorAll('.app-card').forEach(card => {
-        card.addEventListener('mouseenter', function () {
-            this.style.transform = 'translateY(-4px)';
-        });
+    // 防抖函数
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
 
-        card.addEventListener('mouseleave', function () {
-            this.style.transform = 'translateY(0)';
-        });
+    // 高亮关键词
+    function highlightKeywords(element, keyword) {
+        if (!keyword) return;
+
+        const regex = new RegExp(keyword, 'gi');
+        const content = element.innerHTML;
+
+        // 防止重复高亮
+        if (content.includes('<mark class="highlight">')) {
+            return;
+        }
+
+        const highlighted = content.replace(
+            regex,
+            match => `<mark class="highlight">${match}</mark>`
+        );
+
+        element.innerHTML = highlighted;
+    }
+
+    // 页面加载完成后执行
+    document.addEventListener('DOMContentLoaded', function () {
+        // 从URL获取查询参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchTerm = urlParams.get('q');
+
+        // 如果有搜索词，高亮匹配内容
+        if (searchTerm) {
+            document.querySelectorAll('.app-description').forEach(desc => {
+                highlightKeywords(desc, searchTerm);
+            });
+        }
+
+        // 设置搜索输入框事件监听
+        const searchInput = document.getElementById('searchInput');
+        const searchForm = document.getElementById('searchForm');
+
+        // 输入防抖 (300ms)
+        searchInput.addEventListener('input', debounce(function () {
+            searchForm.submit();
+        }, 300));
     });
 </script>
-</body>
-</html>
+{% include 'footer.html' %}

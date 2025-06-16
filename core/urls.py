@@ -16,7 +16,7 @@ urlpatterns = [
     path('apps/<str:app_id>/versions/latest/', views.LatestVersionAPI.as_view(), name='latest-version'),
 
     path('', views.market, name='market'),
-    path('details/<int:app_id>/', views.app_detail, name='app_detail'),
+    path('details/<str:app_id>/', views.app_detail, name='app_detail'),
 
-    path('apps/versions/upload/<int:app_id>/', views.upload_version, name='upload_app_version'),
+    path('apps/versions/upload/<str:app_id>/', views.upload_version, name='upload_app_version'),
 ]

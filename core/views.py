@@ -1,6 +1,9 @@
 import hashlib
 import os
 import re
+
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.utils import timezone
 
 from django.conf import settings
@@ -194,8 +197,24 @@ class LatestVersionAPI(APIView):
 
 
 def market(request):
-    applications = Application.objects.all()
-    return render(request, 'market.html', {'applications': applications})
+    query = request.GET.get('q', '')
+    apps = Application.objects.all()
+
+    if query:
+        apps = apps.filter(
+            Q(name__icontains=query) |
+            Q(description__icontains=query)
+        ).distinct()
+
+    paginator = Paginator(apps, 9)  # 每页9个应用
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'market.html', {
+        'applications': page_obj,
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages()
+    })
 
 
 def app_detail(request, app_id):
