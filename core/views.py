@@ -1,16 +1,17 @@
 import hashlib
 import os
 import re
-
-from django.core.paginator import Paginator
-from django.db.models import Q
-from django.utils import timezone
+from urllib.parse import urlencode
 
 from django.conf import settings
+from django.contrib.auth.forms import UserCreationForm
 from django.core.files.storage import FileSystemStorage
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import FileResponse
-from django.shortcuts import get_object_or_404, render, redirect
-from packaging.version import parse, Version
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from packaging.version import parse
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.renderers import JSONRenderer  # 添加渲染器
@@ -294,3 +295,74 @@ def upload_version(request, app_id):
         'application': application,
         'versions': versions
     })
+
+
+from django.shortcuts import redirect, render
+
+from django.contrib.auth import authenticate, login, logout
+
+
+def login_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            # 从 GET 请求中获取 next 参数
+            next_url = request.GET.get('next')
+            if next_url:
+                return redirect(next_url)  # 登录成功后重定向到 next 页面
+            return redirect('/')  # 登录成功后重定向到 index 页面
+        else:
+            # 如果登录失败，仍然从 GET 请求中获取 next 参数以便在模板中显示
+            next_url = request.GET.get('next')
+            return render(request, 'login.html', {'error': '用户名或密码错误', 'next': next_url})
+    else:
+        # 如果不是 POST 请求，则直接渲染登录页面，并从 GET 请求中获取 next 参数
+        next_url = request.GET.get('next')
+        return render(request, 'login.html', {'next': next_url})
+
+
+def logout_view(request):
+    logout(request)
+    return redirect('/')  # 注销成功后重定向到index页面
+
+
+def login_enter(request):
+    # 假设你想传递一个next参数
+    if request.user.is_authenticated:
+        return render(request, 'login.html', {'user_logged_in': True})
+    next_url = request.GET.get('next', '/')  # 从请求中获取next参数，如果没有则默认为根目录
+    query_string = urlencode({'next': next_url})
+    return redirect(f'/accounts/login?{query_string}')
+
+
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout
+
+
+def register_view(request):
+    if request.user.is_authenticated:
+        # 用户已登录，提示用户选择继续或切换账户
+        return render(request, 'reg.html', {'user_logged_in': True})
+    else:
+        # 用户未登录，渲染注册页面
+        if request.method == 'POST':
+            form = UserCreationForm(request.POST)
+            if form.is_valid():
+                # 处理注册逻辑
+                form.save()
+                # 注册成功后的行为
+                return redirect('login_view')  # 替换为你的成功后要跳转的视图名称
+        else:
+            form = UserCreationForm()
+        return render(request, 'reg.html', {'form': form})
+
+
+@login_required
+def logout_view(request):
+    # 登出逻辑
+    logout(request)
+    return redirect('login_view')  # 或者重定向到其他页面

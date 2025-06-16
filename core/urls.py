@@ -19,4 +19,9 @@ urlpatterns = [
     path('details/<str:app_id>/', views.app_detail, name='app_detail'),
 
     path('apps/versions/upload/<str:app_id>/', views.upload_version, name='upload_app_version'),
+
+    path('register/', views.register_view, name='register_view'),
+    path('accounts/login/', views.login_view, name='login_view'),
+    path('login/', views.login_enter, name='login_view'),
+    path('logout/', views.logout_view, name='logout_view'),
 ]
