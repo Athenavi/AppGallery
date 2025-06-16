@@ -201,7 +201,7 @@ class LatestVersionAPI(APIView):
 
 def market(request):
     query = request.GET.get('q', '')
-    apps = Application.objects.all()
+    apps = Application.objects.all().order_by('-id')
 
     if query:
         apps = apps.filter(
