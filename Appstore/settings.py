@@ -129,9 +129,9 @@ AUTHENTICATION_BACKENDS = (
 )
 
 # GitHub OAuth配置
-SOCIAL_AUTH_GITHUB_KEY = os.getenv('GITHUB_CLIENT_ID')
-SOCIAL_AUTH_GITHUB_SECRET = os.getenv('GITHUB_CLIENT_SECRET')
-SOCIAL_AUTH_GITHUB_SCOPE = ['user:email']
+GITHUB_CLIENT_ID = 'Iv1.ce2c4a6153e3652e'
+GITHUB_CLIENT_SECRET = '80dd46fc3d4e775d4dfbff3ee4461b672e76656d'
+GITHUB_REDIRECT_URI = 'http://127.0.0.1:8000/github-callback/'
 
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',

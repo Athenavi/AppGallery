@@ -4,7 +4,7 @@ import re
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, logger
 from django.core.files.storage import FileSystemStorage
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -297,9 +297,7 @@ def upload_version(request, app_id):
     })
 
 
-from django.shortcuts import redirect, render
-
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate
 
 
 def login_view(request):
@@ -338,7 +336,6 @@ def login_enter(request):
     return redirect(f'/accounts/login?{query_string}')
 
 
-from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 
@@ -366,3 +363,227 @@ def logout_view(request):
     # 登出逻辑
     logout(request)
     return redirect('login_view')  # 或者重定向到其他页面
+
+
+# GitHub OAuth 配置 (添加到settings.py)
+"""
+在 settings.py 中添加：
+GITHUB_CLIENT_ID = 'your_github_client_id'
+GITHUB_CLIENT_SECRET = 'your_github_client_secret'
+GITHUB_REDIRECT_URI = 'http://yourdomain.com/github-callback/'
+"""
+
+
+def github_login(request):
+    """重定向到GitHub授权页面"""
+    base_url = "https://github.com/login/oauth/authorize"
+    params = {
+        "client_id": settings.GITHUB_CLIENT_ID,
+        "redirect_uri": settings.GITHUB_REDIRECT_URI
+    }
+    auth_url = f"{base_url}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
+    return redirect(auth_url)
+
+
+import requests
+import logging
+from django.shortcuts import redirect, render
+from django.conf import settings
+from django.contrib.auth import login
+from django.contrib.auth.models import User
+from django.db import IntegrityError
+from .models import GitHubSocialAuth, UserProfile
+
+logger = logging.getLogger(__name__)
+
+
+def github_callback(request):
+    """处理GitHub回调"""
+    code = request.GET.get('code')
+    state = request.GET.get('state')
+
+    if not code:
+        return render(request, 'error.html', {'error': 'GitHub授权失败: 缺少code参数'})
+
+    # 1. 使用code换取access_token
+    token_url = "https://github.com/login/oauth/access_token"
+    data = {
+        "client_id": settings.GITHUB_CLIENT_ID,
+        "client_secret": settings.GITHUB_CLIENT_SECRET,
+        "code": code,
+        "redirect_uri": settings.GITHUB_REDIRECT_URI
+    }
+    headers = {"Accept": "application/json"}
+
+    try:
+        response = requests.post(token_url, data=data, headers=headers, verify=False)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"获取access_token失败: {str(e)}")
+        return render(request, 'error.html', {'error': f'获取access_token失败: {str(e)}'})
+
+    if response.status_code != 200:
+        return render(request, 'error.html', {'error': f'获取access_token失败: 状态码{response.status_code}'})
+
+    token_data = response.json()
+    access_token = token_data.get('access_token')
+    if not access_token:
+        return render(request, 'error.html', {'error': '缺少access_token'})
+
+    # 2. 使用access_token获取用户信息
+    user_api = "https://api.github.com/user"
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    try:
+        user_response = requests.get(user_api, headers=headers, verify=False)
+        user_response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"获取用户信息失败: {str(e)}")
+        return render(request, 'error.html', {'error': f'获取用户信息失败: {str(e)}'})
+
+    if user_response.status_code != 200:
+        return render(request, 'error.html', {'error': f'获取用户信息失败: 状态码{user_response.status_code}'})
+
+    github_user = user_response.json()
+    github_id = github_user['id']
+    username = github_user['login']
+    email = github_user.get('email', '')
+    avatar_url = github_user['avatar_url']
+    name = github_user.get('name', '')
+    html_url = github_user.get('html_url', '')
+
+    logger.info(f"GitHub用户登录: {username} (ID: {github_id})")
+
+    try:
+        # 尝试查找现有GitHub关联
+        github_auth = GitHubSocialAuth.objects.get(github_id=github_id)
+        user = github_auth.user
+
+        # 更新访问令牌
+        github_auth.access_token = access_token
+        github_auth.save()
+
+        logger.debug(f"找到现有用户: {user.username}")
+
+        # 检查并更新用户资料
+        try:
+            user_profile = UserProfile.objects.get(user=user)
+            user_profile.avatar_url = avatar_url
+            if name:
+                user_profile.full_name = name
+            user_profile.github_profile = html_url
+            user_profile.save()
+            logger.debug(f"更新用户资料: {user.username}")
+        except UserProfile.DoesNotExist:
+            UserProfile.objects.create(
+                user=user,
+                avatar_url=avatar_url,
+                full_name=name or '',
+                github_profile=html_url,
+                registration_source='github'
+            )
+            logger.info(f"创建用户资料: {user.username}")
+
+        # 关键修复：设置认证后端
+        user.backend = 'social_core.backends.github.GithubOAuth2'
+
+        # 登录现有用户
+        login(request, user)
+        logger.info(f"用户登录成功: {user.username}")
+        return redirect('login_view')
+
+    except GitHubSocialAuth.DoesNotExist:
+        # 没有找到现有关联，创建新用户
+        pass
+
+    # 处理新用户创建
+    # 确保有有效的邮箱地址
+    if not email:
+        try:
+            emails_response = requests.get(
+                "https://api.github.com/user/emails",
+                headers=headers,
+                timeout=5,
+                verify=False
+            )
+            if emails_response.status_code == 200:
+                emails = emails_response.json()
+                primary_emails = [e['email'] for e in emails if e.get('primary') and e.get('verified')]
+                verified_emails = [e['email'] for e in emails if e.get('verified')]
+
+                if primary_emails:
+                    email = primary_emails[0]
+                elif verified_emails:
+                    email = verified_emails[0]
+                else:
+                    email = f"github-{github_id}@users.noreply.github.com"
+        except Exception as e:
+            logger.warning(f"获取邮箱失败: {str(e)}")
+            email = f"github-{github_id}@users.noreply.github.com"
+
+    if not email:
+        email = f"github-{github_id}@users.noreply.github.com"
+
+    # 生成唯一用户名
+    base_username = f"github_{github_id}"
+    username = base_username
+    suffix = 1
+    while User.objects.filter(username=username).exists():
+        username = f"{base_username}_{suffix}"
+        suffix += 1
+
+    # 创建新用户
+    try:
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            first_name=name.split(' ')[0] if name else '',
+            last_name=' '.join(name.split(' ')[1:]) if name and len(name.split(' ')) > 1 else ''
+        )
+    except IntegrityError as e:
+        logger.error(f"创建用户失败: {str(e)}")
+        # 尝试使用更简单的用户名
+        username = f"github_{github_id}_{suffix}"
+        try:
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=name.split(' ')[0] if name else '',
+                last_name=' '.join(name.split(' ')[1:]) if name and len(name.split(' ')) > 1 else ''
+            )
+        except Exception as e2:
+            logger.error(f"再次创建用户失败: {str(e2)}")
+            return render(request, 'error.html', {'error': f'创建用户失败: {str(e2)}'})
+
+    # 创建GitHub认证记录
+    try:
+        GitHubSocialAuth.objects.create(
+            user=user,
+            github_id=github_id,
+            github_login=github_user['login'],
+            access_token=access_token
+        )
+    except Exception as e:
+        logger.error(f"创建GitHub认证记录失败: {str(e)}")
+        user.delete()
+        return render(request, 'error.html', {'error': f'创建GitHub认证记录失败: {str(e)}'})
+
+    # 创建用户资料
+    try:
+        UserProfile.objects.create(
+            user=user,
+            avatar_url=avatar_url,
+            full_name=name or '',
+            github_profile=html_url,
+            registration_source='github'
+        )
+    except Exception as e:
+        logger.warning(f"创建用户资料失败: {str(e)}")
+
+    # 关键修复：设置认证后端
+    user.backend = 'django.contrib.auth.backends.ModelBackend'
+
+    # 登录用户
+    login(request, user)
+    logger.info(f"用户登录成功: {user.username}")
+    return redirect('login_view')

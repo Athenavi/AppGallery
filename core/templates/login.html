@@ -81,6 +81,8 @@
         <input type="password" name="password" required id="password">
         <button type="submit">登录</button>
         <a href="{% url 'register_view' %}" class="btn-link">去注册</a>
+        <hr/>
+        <a href="/github-login/" class="btn-link">Github登录</a>
     </form>
 {% endif %}
 {% if error %}
@@ -88,10 +90,3 @@
 {% endif %}
 </body>
 </html>
-<script>
-    document.querySelector('.btn-github').addEventListener('click', function (e) {
-        e.preventDefault();
-        alert('正在跳转到GitHub授权页面...');
-        // 实际项目中这里会重定向到GitHub授权URL
-    });
-</script>
