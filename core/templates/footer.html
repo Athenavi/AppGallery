@@ -1,5 +1,5 @@
 <!-- 底部导航 -->
-<footer class="bg-gray-100 border-t border-gray-200 mt-12 py-8">
+<footer class="border-t border-gray-200 mt-12 py-8">
     <div class="container mx-auto px-4">
         <div class="text-center text-gray-500 text-sm">
             <p>&copy; {% now "Y" %} 应用市场. 保留所有权利。</p>
@@ -12,3 +12,29 @@
         </div>
     </div>
 </footer>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+
+        // 检查本地存储中的主题设置
+        const savedTheme = localStorage.getItem('theme');
+
+        // 设置初始主题
+        if (savedTheme === 'dark') {
+            html.classList.add('dark');
+        } else {
+            html.classList.remove('dark');
+        }
+
+        // 主题切换事件
+        themeToggle.addEventListener('click', function () {
+            html.classList.toggle('dark');
+            if (html.classList.contains('dark')) {
+                localStorage.setItem('theme', 'dark');
+            } else {
+                localStorage.setItem('theme', 'light');
+            }
+        });
+    });
+</script>
